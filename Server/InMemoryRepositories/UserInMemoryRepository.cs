@@ -5,7 +5,15 @@ namespace InMemoryRepositories;
 
 public class UserInMemoryRepository : IUserRepository
 {
-    private List<User> users = new List<User>();
+    private readonly List<User> users = new List<User>();
+    
+    public UserInMemoryRepository()
+    {
+        _ = AddAsync(new User("trmo", "1234")).Result;
+        _ = AddAsync(new User("mivi", "4321")).Result;
+        _ = AddAsync(new User("jknr", "1243")).Result;
+        _ = AddAsync(new User("alhe", "2143")).Result;
+    }
     
     public Task<User> AddAsync(User user)
     {
@@ -33,19 +41,18 @@ public class UserInMemoryRepository : IUserRepository
 
     public Task DeleteAsync(int id)
     { 
-        User? existingUser = users.SingleOrDefault(x => x.Id == id);
-        if (existingUser is null)
+        var userToRemove= users.SingleOrDefault(x => x.Id == id);
+        if (userToRemove is null)
         {
-            throw new InvalidOperationException(
-                $"User with ID '{id}' not found");
+            throw new InvalidOperationException($"User with ID '{id}' not found");
         }
-        users.Remove(existingUser);
+        users.Remove(userToRemove);
         return Task.CompletedTask;
     }
 
     public Task<User> GetSingleAsync(int id)
     {
-        User? user = users.SingleOrDefault(x => x.Id == id);
+        var user = users.SingleOrDefault(x => x.Id == id);
         if (user is null)
         {
             throw new InvalidOperationException(

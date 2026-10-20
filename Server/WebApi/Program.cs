@@ -1,13 +1,10 @@
 using FileRepositories;
 using RepositoryContracts;
-using AspWebApp = Microsoft.AspNetCore.Builder.WebApplication;
 
-var builder = AspWebApp.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);
 
-// Services
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddOpenApi();
 
 builder.Services.AddScoped<IPostRepository, PostFileRepository>();
 builder.Services.AddScoped<IUserRepository, UserFileRepository>();
@@ -15,9 +12,13 @@ builder.Services.AddScoped<ICommentRepository, CommentFileRepository>();
 
 var app = builder.Build();
 
-// Swagger (always on, so it works regardless of environment)
-app.UseSwagger();
-app.UseSwaggerUI();
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+}
+
+app.UseHttpsRedirection();
 
 app.UseAuthorization();
 

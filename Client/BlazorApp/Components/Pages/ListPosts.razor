@@ -1,0 +1,45 @@
+@page "/posts"
+@using BlazorApp.Services
+@using ApiContracts.Posts
+@inject IPostService PostService
+
+<h3>Posts</h3>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p class="text-danger">@message</p>
+}
+else if (posts == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (posts.Count == 0)
+{
+    <p>No posts yet. <a href="/posts/create">Create the first one</a>.</p>
+}
+else
+{
+    <ul>
+        @foreach (PostDto post in posts)
+        {
+            <li><a href="/posts/@post.Id">@post.Title</a></li>
+        }
+    </ul>
+}
+
+@code {
+    private List<PostDto>? posts;
+    private string message = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            posts = await PostService.GetPostsAsync();
+        }
+        catch (Exception e)
+        {
+            message = e.Message;
+        }
+    }
+}

@@ -1,0 +1,41 @@
+@page "/users"
+@using BlazorApp.Services
+@using ApiContracts.Users
+@inject IUserService UserService
+
+<h3>Users</h3>
+
+@if (!string.IsNullOrEmpty(message))
+{
+    <p class="text-danger">@message</p>
+}
+else if (users == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <ul>
+        @foreach (UserDto user in users)
+        {
+            <li>@user.UserName (id @user.Id)</li>
+        }
+    </ul>
+}
+
+@code {
+    private List<UserDto>? users;
+    private string message = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            users = await UserService.GetUsersAsync();
+        }
+        catch (Exception e)
+        {
+            message = e.Message;
+        }
+    }
+}

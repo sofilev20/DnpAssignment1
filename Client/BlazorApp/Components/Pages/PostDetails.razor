@@ -1,4 +1,5 @@
 @page "/posts/{Id:int}"
+@using System.Security.Claims
 @using BlazorApp.Services
 @using ApiContracts.Posts
 @using ApiContracts.Comments
@@ -38,29 +39,37 @@ else
         }
     }
 
-    <div class="mt-4">
-        <label class="form-label">Add a comment</label>
-        <textarea class="form-control mb-2" rows="3"
-                  @bind="commentBody" @bind:event="oninput"></textarea>
-        <button class="btn btn-primary"
-                @onclick="AddCommentAsync"
-                disabled="@string.IsNullOrWhiteSpace(commentBody)">
-            Add comment
-        </button>
+    <AuthorizeView>
+        <Authorized>
+            <div class="mt-4">
+                <label class="form-label">Add a comment</label>
+                <textarea class="form-control mb-2" rows="3"
+                          @bind="commentBody" @bind:event="oninput"></textarea>
+                <button class="btn btn-primary"
+                        @onclick="AddCommentAsync"
+                        disabled="@string.IsNullOrWhiteSpace(commentBody)">
+                    Add comment
+                </button>
 
-        @if (!string.IsNullOrEmpty(commentMessage))
-        {
-            <p class="text-danger mt-2">@commentMessage</p>
-        }
-    </div>
+                @if (!string.IsNullOrEmpty(commentMessage))
+                {
+                    <p class="text-danger mt-2">@commentMessage</p>
+                }
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <p class="mt-4"><a href="/login">Log in</a> to comment.</p>
+        </NotAuthorized>
+    </AuthorizeView>
 }
 
 @code {
     [Parameter]
     public int Id { get; set; }
 
-    private const int CurrentUserId = 1;
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; } = default!;
 
+    private int userId;
     private PostDto? post;
     private string loadError = string.Empty;
     private string commentBody = string.Empty;
@@ -68,6 +77,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        AuthenticationState authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+        if (claimsPrincipal.Identity is not null && claimsPrincipal.Identity.IsAuthenticated)
+        {
+            string userIdAsString = claimsPrincipal.Claims.Single(c => c.Type == "Id").Value;
+            userId = int.Parse(userIdAsString);
+        }
+
         await LoadPostAsync();
     }
 
@@ -91,7 +108,7 @@ else
             CreateCommentDto dto = new()
             {
                 Body = commentBody,
-                AuthorUserId = CurrentUserId,
+                AuthorUserId = userId,
                 PostId = Id
             };
 

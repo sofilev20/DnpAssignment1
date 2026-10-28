@@ -1,6 +1,28 @@
 @WebApplication_HostAddress = http://localhost:5237
 
-GET {{WebApplication_HostAddress}}/weatherforecast/
-Accept: application/json
+### 1. Correct login -> expect 200 + UserDto JSON
+POST {{WebApplication_HostAddress}}/auth/login
+Content-Type: application/json
 
-###
+{
+  "userName": "sofiia",
+  "password": "rere"
+}
+
+### 2. Wrong password -> expect 401 "Incorrect password"
+POST {{WebApplication_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "userName": "sofiia",
+  "password": "wrong"
+}
+
+### 3. Unknown user -> expect 401 "User not found"
+POST {{WebApplication_HostAddress}}/auth/login
+Content-Type: application/json
+
+{
+  "userName": "nobody",
+  "password": "rere"
+}

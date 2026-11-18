@@ -1,0 +1,109 @@
+@page "/ViewSinglePost/{PostId:int}"
+@using System.Security.Claims
+@using BlazorApp.Services
+@using ApiContracts.Posts
+@using ApiContracts.Comments
+@using ApiContracts.Users
+@inject IPostService PostService
+
+@if (postDto is not null)
+{
+    <div>
+        <h3>@postDto.Title</h3>
+        <h6>Author: @author?.UserName</h6>
+        <p>@postDto.Body</p>
+    </div>
+    <hr/>
+    <div>
+        @foreach (var comment in comments)
+        {
+            <div>
+                <p>@comment.Body</p>
+            </div>
+        }
+    </div>
+    @if (isAuthenticated)
+    {
+        <div>
+            <input type="text" @bind="newComment"/>
+            <button @onclick="AddComment">Add comment</button>
+        </div>
+    }
+}
+else
+    {
+     <p>Loading...</p>   
+    }
+@if (!string.IsNullOrEmpty(message))
+{
+    <label>@message</label>
+}
+
+@code {
+    [CascadingParameter] public Task<AuthenticationState> State { get; set; } = null!;
+
+    [Parameter]
+    public int PostId { get; set; }
+
+    private PostDto? postDto;
+    private List<CommentDto> comments = [];
+    private UserDto? author;
+    private string message = string.Empty;
+    private string newComment = string.Empty;
+    private int? userId = null!;
+    private bool isAuthenticated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthenticationState authenticationState = await State;
+        ClaimsPrincipal claimsPrincipal = authenticationState.User;
+        if (claimsPrincipal.Identity is not null && claimsPrincipal.Identity.IsAuthenticated)
+        {
+            // the user is logged in
+            string? userName = claimsPrincipal.Identity?.Name;
+            IEnumerable<Claim>  claims = claimsPrincipal.Claims;
+            string userIdAsString = claims.Single(c => c.Type == "Id").Value;
+            userId = int.Parse(userIdAsString);
+            isAuthenticated = true;
+        }
+
+        try
+        {
+            postDto = await PostService.GetSinglePost(PostId);
+            comments = await PostService.GetCommentsForPost(PostId);
+            author = await PostService.GetAuthorOfPost(PostId);
+            // Here I do 3 separate requests to the Web API (through the service class)
+            // This is because I made a clear separation between the entities, and have some general purpose DTOs
+            // An alternative approach is make more specific DTOs, e.g. SinglePostDto, which would also contain comments and author.
+            // That's a design choice, it's up to you.
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            message = e.Message;
+        }
+    }
+    
+    
+    private async Task AddComment()
+    {
+        message = string.Empty; 
+        CreateCommentDto createCommentDto = new()
+        {
+            PostId = PostId,
+            Body = newComment,
+            AuthorUserId = (int)userId!
+        };
+        try
+        {
+            CommentDto createdComment = await PostService.AddComment(createCommentDto);
+            newComment = string.Empty;
+            comments.Add(createdComment);
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            message = e.Message;
+        }
+    }
+}

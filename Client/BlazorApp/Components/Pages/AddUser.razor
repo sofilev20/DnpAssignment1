@@ -1,0 +1,67 @@
+@page "/AddUser"
+@using BlazorApp.Services
+@using ApiContracts.Users
+
+@* here we inject the IUserService. This page does not know the implementation uses http to contact a web api. It could have just been a local list*@
+@inject IUserService UserService
+
+<h3>AddUser</h3>
+
+<div>
+    <div>
+        <label>User name:</label>
+        <input type="text" @bind="userName"/>
+    </div>
+    <div>
+        <label>Password:</label>
+        <input type="text" @bind="password"/>
+    </div>
+    <div>
+        <label>Retype password:</label>
+        <input type="text" @bind="passwordAgain"/>
+    </div>
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div>
+            <label>@message</label>
+        </div>
+    }
+    <div>
+        <button @onclick="CreateUser" class="btn btn-primary">Save</button>
+    </div>
+</div>
+
+@code {
+    private string userName = string.Empty;
+    private string password = string.Empty;
+    private string passwordAgain = string.Empty;
+    private string message = string.Empty;
+
+    private async Task CreateUser()
+    {
+        message = string.Empty;
+        if (!string.Equals(password, passwordAgain)) //checking the password match
+        {
+            message = "Passwords do not match.";
+            return;
+        }
+
+        CreateUserDto dto = new() // create the dto to contain the data to be sent to the server
+        {
+            UserName = userName,
+            Password = password
+        };
+
+        try
+        {
+            UserDto created = await UserService.AddUserAsync(dto);
+            message = $"User {created.UserName} created";
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            message = e.Message;
+        }
+    }
+
+}

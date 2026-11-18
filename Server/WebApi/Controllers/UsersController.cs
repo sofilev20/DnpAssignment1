@@ -2,6 +2,7 @@
 using ApiContracts.Users;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryContracts;
 
 namespace WebApi.Controllers;
@@ -30,13 +31,13 @@ public class UsersController : ControllerBase
             Id = created.Id, 
             UserName = created.UserName
         }; 
-        return Created($"/Users/{dto.Id}", created);
+        return Created($"/Users/{dto.Id}", dto);
     }
     
     private async Task VerifyUserNameIsAvailableAsync(string userName)
     {
-        bool usernameIsTaken = userRepo.GetMany()
-            .Any(u => u.UserName.ToLower().Equals(userName.ToLower()));
+        bool usernameIsTaken = await userRepo.GetMany()
+            .AnyAsync(u => u.UserName.ToLower().Equals(userName.ToLower()));
         if (usernameIsTaken)
         {
             throw new ValidationException($"Username '{userName}' is already taken");
@@ -72,18 +73,29 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDto>> GetUser([FromRoute] int id)
     {
         User user = await userRepo.GetSingleAsync(id);
-        return Ok(user);
+        UserDto dto = new()
+        {
+            Id = user.Id,
+            UserName = user.UserName
+        };
+        return Ok(dto);
     }
 
     // GET /Users?userNameContains=abc
     [HttpGet]
-    public ActionResult<IEnumerable<UserDto>> GetUsers([FromQuery] string? userNameContains)
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsers([FromQuery] string? userNameContains)
     {
-        IQueryable<User> users = userRepo.GetMany()
+        List<UserDto> users = await userRepo.GetMany()
             .Where(
                 u => userNameContains == null ||
                      u.UserName.ToLower().Contains(userNameContains.ToLower())
-            );
+            )
+            .Select(u => new UserDto
+            {
+                Id = u.Id,
+                UserName = u.UserName
+            })
+            .ToListAsync();
 
         return Ok(users);
     }

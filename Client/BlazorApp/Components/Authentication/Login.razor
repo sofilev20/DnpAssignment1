@@ -19,21 +19,21 @@
         <button @onclick="LoginAsync">Log in</button>
     </NotAuthorized>
     <Authorized>
-        <h3>Hello, @context.User.Identity?.Name</h3>
+        <h3>Hello, @context.User.Identity.Name</h3>
     </Authorized>
 </AuthorizeView>
 
-@code {
-    private string userName = string.Empty;
-    private string password = string.Empty;
-    private string errorLabel = string.Empty;
+@code { 
+    private string userName;
+    private string password;
+    private string errorLabel;
 
     private async Task LoginAsync()
     {
         errorLabel = "";
         try
         {
-            await ((SimpleAuthProvider)AuthProvider).Login(userName, password);
+            await ((SimpleAuthProvider)AuthProvider).LoginASync(userName, password);
             navMgr.NavigateTo("/");
         }
         catch (Exception e)

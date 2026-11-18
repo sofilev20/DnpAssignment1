@@ -1,12 +1,15 @@
+using ApiContracts.Comments;
 using ApiContracts.Posts;
+using ApiContracts.Users;
 
 namespace BlazorApp.Services;
 
 public interface IPostService
 {
-    public Task<PostDto> AddPostAsync(CreatePostDto request);
-    public Task UpdatePostAsync(int id, UpdatePostDto request);
-    public Task DeletePostAsync(int id);
-    public Task<PostDto> GetPostAsync(int id);
-    public Task<List<PostDto>> GetPostsAsync();
+    Task<PostDto> AddPostAsync(CreatePostDto request);
+    Task<IEnumerable<PostDto>> GetPosts();
+    Task<PostDto> GetSinglePost(int postId);
+    Task<UserDto> GetAuthorOfPost(int authorId);
+    Task<List<CommentDto>> GetCommentsForPost(int postId);
+    Task<CommentDto> AddComment(CreateCommentDto createCommentDto);
 }

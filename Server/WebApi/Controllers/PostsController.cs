@@ -3,6 +3,7 @@ using ApiContracts.Posts;
 using ApiContracts.Users;
 using Entities;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RepositoryContracts;
 
 namespace WebApi.Controllers;
@@ -27,7 +28,15 @@ public class PostsController : ControllerBase
 
         Post post = new(request.Title, request.Body, request.AuthorUserId);
         Post created = await postRepo.AddAsync(post);
-        return Results.Created($"/Posts/{created.Id}", created);
+
+        PostDto dto = new()
+        {
+            Id = created.Id,
+            Title = created.Title,
+            Body = created.Body,
+            UserId = created.UserId
+        };
+        return Results.Created($"/Posts/{created.Id}", dto);
     }
     
     private async Task VerifyAuthorExists(int userId, IUserRepository userRepo)
@@ -55,55 +64,50 @@ public class PostsController : ControllerBase
 
     [HttpGet("{id:int}")]
     public async Task<IResult> GetPost(
-        [FromServices] IUserRepository userRepo,
-        [FromServices] ICommentRepository commentRepo,
         [FromRoute] int id,
         [FromQuery] bool includeAuthor,
         [FromQuery] bool includeComments)
     {
-        Post post = await postRepo.GetSingleAsync(id);
+        IQueryable<Post> queryForPost = postRepo
+            .GetMany()
+            .Where(p => p.Id == id)
+            .AsQueryable();
 
-        PostDto dto = new()
+        if (includeAuthor)
         {
-            Id = post.Id,
-            Title = post.Title,
-            Body = post.Body,
-            UserId = post.UserId
-        };
+            queryForPost = queryForPost.Include(p => p.User);
+        }
 
-        dto.Author = await IncludeAuthorIfRequested(userRepo, includeAuthor, post.UserId);
-
-        dto.Comments = IncludeCommentsIfRequested(commentRepo, id, includeComments);
-
-        return Results.Ok(dto);
-    }
-
-    private static async Task<UserDto?> IncludeAuthorIfRequested(IUserRepository userRepo, bool includeAuthor,
-        int authorId)
-    {
-        if (!includeAuthor) return null;
-        User author = await userRepo.GetSingleAsync(authorId);
-        return new UserDto
+        if (includeComments)
         {
-            Id = author.Id,
-            UserName = author.UserName
-        };
-    }
+            queryForPost = queryForPost.Include(p => p.Comments);
+        }
 
-
-    private static List<CommentDto> IncludeCommentsIfRequested(ICommentRepository commentRepo, int id,
-        bool includeComments)
-    {
-        if (!includeComments) return [];
-        return commentRepo.GetMany()
-            .Where(c => c.PostId == id)
-            .Select(c => new CommentDto
+        PostDto? dto = await queryForPost.Select(post => new PostDto()
             {
-                Id = c.Id,
-                Body = c.Body,
-                AuthorUserId = c.UserId,
+                Id = post.Id,
+                Title = post.Title,
+                Body = post.Body,
+                UserId = post.UserId,
+                Author = includeAuthor
+                    ? new UserDto
+                    {
+                        Id = post.User.Id,
+                        UserName = post.User.UserName
+                    }
+                    : null,
+                Comments = includeComments
+                    ? post.Comments.Select(c => new CommentDto
+                    {
+                        Id = c.Id,
+                        Body = c.Body,
+                        AuthorUserId = c.UserId
+                    }).ToList()
+                    : new ()
             })
-            .ToList();
+            .FirstOrDefaultAsync();
+
+        return dto == null ? Results.NotFound() : Results.Ok(dto);
     }
 
     [HttpGet]
@@ -121,18 +125,16 @@ public class PostsController : ControllerBase
         }
 
         // using Select() here. It's a simpler way to convert a list of objects to a list of other objects.
-        List<PostDto> posts = queryablePosts.Select(post => new PostDto
+        List<PostDto> posts = await queryablePosts.Select(post => new PostDto
             {
                 Id = post.Id,
                 Title = post.Title,
                 Body = post.Body,
                 UserId = post.UserId
             })
-            .ToList();
+            .ToListAsync();
         return Results.Ok(posts);
     }
-
-  
 
     [HttpPost("{postId:int}/comments")] // This will result in this route: /Posts/{postId}/Comments
     public async Task<ActionResult<CommentDto>> AddComment(
@@ -158,8 +160,6 @@ public class PostsController : ControllerBase
         return Created($"/Comments/{created.Id}", dto);
     }
 
-    
-    
     private async Task VerifyPostExists(int postId)
     {
         _ = await postRepo.GetSingleAsync(postId);
@@ -172,7 +172,7 @@ public class PostsController : ControllerBase
         [FromServices] ICommentRepository commentRepo)
     {
         await VerifyPostExists(postId);
-        IEnumerable<CommentDto> comments = commentRepo.GetMany()
+        List<CommentDto> comments = await commentRepo.GetMany()
             .Where(c => c.PostId == postId)
             .Select(c => new CommentDto
             {
@@ -181,7 +181,7 @@ public class PostsController : ControllerBase
                 AuthorUserId = c.UserId,
                 PostId = c.PostId
             })
-            .AsEnumerable();
+            .ToListAsync();
         return Ok(comments);
     }
 

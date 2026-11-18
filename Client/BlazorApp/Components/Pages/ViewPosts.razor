@@ -1,0 +1,53 @@
+@page "/ViewPosts"
+@using BlazorApp.Services
+@using ApiContracts.Posts
+@inject IPostService PostService
+@inject NavigationManager NavMgr
+
+<h3>ViewPosts</h3>
+<div>
+    @if (!posts.Any()) // @*if there are no posts, display a message *@
+    {
+        <label>No posts to view</label>
+    }
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <label>@message</label>
+    }
+    
+    @foreach (var post in posts)
+    {
+        <div class="post-box">
+            @* My PostDto does not contain author name. I could fetch that for each post, but that would require many requests, and be expensive *@
+            @* Alternatively, I could have the server get the author name, when creating the PostDtos. *@
+            
+            <h4 class="post-title" @onclick="() => ViewSinglePost(post.Id)">@post.Title</h4>
+        </div>
+    }
+</div>
+
+
+@code {
+    private IEnumerable<PostDto> posts = []; //initialize to empty list
+    private string message = string.Empty;
+
+    // this method is automatically called when the component is initialized, we use it to load any data,
+    // that should initially be displayed, without the user explicitly having to press a button.
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            posts = await PostService.GetPosts();
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e);
+            message = e.Message;
+        }
+    }
+
+    private void ViewSinglePost(int postId)
+    {
+        NavMgr.NavigateTo($"ViewSinglePost/{postId}");
+    }
+}
